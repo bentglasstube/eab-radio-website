@@ -1,8 +1,9 @@
 package EaBRadio;
-use Dancer ':syntax';
 
-use Net::MPD;
+use AnyEvent;
+use Dancer ':syntax';
 use LWP::UserAgent;
+use Net::MPD;
 
 use utf8;
 use strict;
@@ -13,17 +14,43 @@ our $VERSION = '0.1';
 # TODO make dynamic
 my $HOST = 'alan.radio.eatabrick.org';
 
-# cache mpd connection
-my $mpd = undef;
+my @hosts = (
+  { host => 'alan.radio.eatabrick.org' },
+  { host => 'steve.radio.eatabrick.org' },
+);
+
+our $timer = AnyEvent->timer(after => 1, interval => 10, cb => sub {
+    debug 'Tick!';
+    foreach my $host (@hosts) {
+      unless ($host->{mpd}) {
+        eval {
+          $host->{mpd} = Net::MPD->connect($host->{host});
+        };
+        if ($@) {
+          $host->{error} = $@;
+          delete $host->{mpd};
+        }
+      }
+
+      if ($host->{mpd}) {
+        eval {
+          $host->{mpd}->ping;
+          $host->{status} = $host->{mpd}->update_status;
+        };
+        if ($@) {
+          $host->{error} = $@;
+          delete $host->{mpd};
+        }
+      }
+    }
+});
+
 sub mpd {
-  unless ($mpd) {
-    debug "Opening new connection to $HOST";
-    $mpd = Net::MPD->connect($HOST)
+  foreach my $host (@hosts) {
+    return $host->{mpd} if $host->{mpd};
   }
 
-  $mpd->ping;
-  $mpd->update_status;
-  return $mpd;
+  return undef;
 }
 
 get '/' => sub {
@@ -84,6 +111,10 @@ post '/skip' => sub {
 
   content_type 'application/json';
   to_json({ status => 'success' });
+};
+
+get '/hosts' => sub {
+  template 'hosts', { hosts => \@hosts };
 };
 
 1;

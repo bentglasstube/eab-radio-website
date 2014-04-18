@@ -66,3 +66,11 @@
 em {
   color: #777;
 }
+
+.offline {
+  color: #b00;
+}
+
+.online {
+  color: #0b0;
+}

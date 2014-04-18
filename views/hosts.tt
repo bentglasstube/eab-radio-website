@@ -1,0 +1,7 @@
+<h1>Hosts</h1>
+
+<ul class="list-unstyled">
+[% foreach host in hosts %]
+  <li class="[% host.mpd ? 'online' : 'offline' %]">[% host.host %]</li>
+[% end %]
+</ul>
